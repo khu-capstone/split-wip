@@ -8,7 +8,7 @@ url = "https://en.wikipedia.org/wiki/Wolfgang_Amadeus_Mozart"
 article = Article(url)
 html = article.html
 
-# sentence processing
+# make structured html text from pure html
 sentence = Broker(html)
 
 
