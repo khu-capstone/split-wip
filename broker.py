@@ -1,3 +1,5 @@
+from nltk.tokenize import sent_tokenize
+
 class Broker():
     def __init__(self, html):
         self.html = html
@@ -9,6 +11,7 @@ class Broker():
         self.attr = None
         self.attrs = None
         self.block = 0 # Borker index for block
+        self.blocks = []
         self.text = ''
         # tags with no closing
         self.non_closing_tags = ["area", "base", "br", "col", "command", "embeded", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"]
@@ -28,6 +31,10 @@ class Broker():
             # else not tag
             else:
                 self.text_process()
+        # split at dots
+        self.split_dots()
+        # split as blocks
+        self.split_block()
     
     def tag_process(self):
         self.update_tags()
@@ -98,3 +105,102 @@ class Broker():
             self.tags.append(self.tag)
             self.attrs.append(self.attr)
         self.data.append({"tag":'>'.join(self.tags), "attr":self.attrs, "text":self.text, "block":self.block})
+
+    # split data at dot
+    def split_dots(self):
+        datas = []
+        for data in self.data:
+            text = data['text']
+            while '.' in text:
+                index = text.find('.')
+                new_text = text[:index + 1]
+                datas.append({"tag":data["tag"], "attr":data["attr"], "text":new_text, "block": data["block"]})
+                text = text[index + 1:]
+            datas.append({"tag":data["tag"], "attr":data["attr"], "text":text, "block": data["block"]})
+        self.data = datas[:]
+    
+    # split document into block
+    def split_block(self):
+        block = []
+        index_block = self.data[0]['block']
+        for data in self.data:
+            if index_block == data['block']:
+                block.append(data)
+            else:
+                self.blocks.append(block[:])
+                index_block = data['block']
+                block = [data]
+
+class SentenceBroker(Broker):
+    def __init__(self, html):
+        self.sentence = []
+        self.sentences = [] # data with sentence number
+        self.line = 0 # line index
+        super().__init__(html)
+
+    def process(self):
+        super().process()
+        for i, blocks in enumerate(self.blocks):
+            self.make_sentences(blocks)
+            self.update_sentences(blocks)
+
+    # make sentences with block
+    def make_sentences(self, blocks):
+        sentence = ""
+        for block in blocks:
+            sentence += block['text']
+        self.sentence = sent_tokenize(sentence)
+    
+    def update_sentences(self, blocks):
+        index_i, index_j = 0, 0 # j index for sentences
+        for block in blocks:
+            text = block['text']
+            while text:
+                if text[0] in "\n ": # erase indent
+                    text = text[1:]
+                    continue
+                if self.sentence[index_i][index_j] in "\n ": # erase indent
+                    index_j += 1
+                    continue
+                # "abcd", "abcd"
+                if text == self.sentence[index_i][index_j:]:
+                    article_tag = self.deep_article_tag(block['tag'])
+                    self.sentences.append({'line':self.line, 'tag':article_tag, 'text':self.sentence[index_i]})
+                    self.line += 1
+                    text = ''
+                    index_i += 1
+                    index_j = 0
+                # "abcd", "ab" -> impossible
+                # just ignore same index
+                elif text[:len(self.sentence[index_i][index_j:])] == self.sentence[index_i][index_j:]:
+                    self.line += 1
+                    text = text[len(self.sentence[index_i][index_j:]):]
+                    index_i += 1
+                    index_j = 0
+                # "ab", "abcd"
+                elif text == self.sentence[index_i][index_j:index_j+len(text)]:
+                    index_j += len(text)
+                    text = ''
+                else:
+                    print("ERROR in SentenceBroker: update_sentences()")
+                    exit()
+
+    # get deepest article tags
+    def deep_article_tag(self, tags):
+        for tag in tags.split('>')[::-1]:
+            if tag in self.article_tags:
+                return tag
+        print("ERROR in SentenceBroker: deep_article_tag") # no article tag
+        exit()
+    
+    # get all sentences
+    def get_sentences(self):
+        return self.sentences
+    
+    # get sentences with tags
+    def get_sentences_with_tag(self, tag):
+        rs = []
+        for sentence in self.sentences:
+            if sentence['tag'] == tag:
+                rs.append(sentence)
+        return rs
