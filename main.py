@@ -3,7 +3,6 @@ from broker import SentenceBroker
 
 # get url
 url = "https://en.wikipedia.org/wiki/Wolfgang_Amadeus_Mozart"
-url = "https://en.wikipedia.org/wiki/COVID-19_pandemic"
 
 # get html from url
 article = Article(url)
@@ -27,6 +26,33 @@ sb = SentenceBroker(html)
 # [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
 
 s = sb.get_sentences()
-li = sb.get_sentences_with_tag('ol>li')
-no = sb.get_sentence(819)
-print(no)
+ul = sb.get_sentences_with_tag('ul')
+ol = sb.get_sentences_with_tag('ol')
+s = sb.get_sentence(140)
+
+# get previous sentence
+# for u in ul:
+#     tag = u['tag']
+#     index = u['line']
+#     while True:
+#         s = sb.get_sentence(index)
+#         if tag not in s['tag']:
+#            break
+#         index -= 1
+#     print(u)
+#     print(s)
+#     print("========")
+
+# get previous header sentence
+for u in ul:
+    tag = u['tag']
+    index = u['line']
+    while True:
+        s = sb.get_sentence(index)
+        if tag not in s['tag']:
+            if 'h1' in s['tag'] or 'h2' in s['tag'] or 'h3' in s['tag'] or 'h4' in s['tag'] or 'h5' in s['tag'] or 'h6' in s['tag']:
+                break
+        index -= 1
+    print(u)
+    print(s)
+    print("========")
