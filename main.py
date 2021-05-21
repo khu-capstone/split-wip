@@ -3,6 +3,7 @@ from broker import SentenceBroker
 
 # get url
 url = "https://en.wikipedia.org/wiki/Wolfgang_Amadeus_Mozart"
+url = "https://en.wikipedia.org/wiki/COVID-19_pandemic"
 
 # get html from url
 article = Article(url)
@@ -19,3 +20,13 @@ sb = SentenceBroker(html)
 # get sentences with tag (line, tag, text)
 # sb.get_sentences_with_tag('li')
 # [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
+
+# sb.get_sentences_without_tag(<tag>)
+# get sentences without tag (line, tag, text)
+# sb.get_sentences_without_tag('p')
+# [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
+
+s = sb.get_sentences()
+li = sb.get_sentences_with_tag('ol>li')
+no = sb.get_sentence(819)
+print(no)

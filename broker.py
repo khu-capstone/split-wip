@@ -187,20 +187,37 @@ class SentenceBroker(Broker):
 
     # get deepest article tags
     def deep_article_tag(self, tags):
-        for tag in tags.split('>')[::-1]:
+        tags = tags.split('>')
+        for i, tag in enumerate(tags[::-1]):
             if tag in self.article_tags:
-                return tag
+                break
+        return '>'.join(tags[:len(tags)-i])
         print("ERROR in SentenceBroker: deep_article_tag") # no article tag
         exit()
     
+    # get sentence with line no
+    def get_sentence(self, line):
+        for sentence in self.sentences:
+            if sentence['line'] == line:
+                return sentence
+        return None
+
     # get all sentences
     def get_sentences(self):
         return self.sentences
     
     # get sentences with tags
-    def get_sentences_with_tag(self, tag):
+    def get_sentences_with_tag(self, tags):
         rs = []
         for sentence in self.sentences:
-            if sentence['tag'] == tag:
+            if tags in sentence['tag']:
+                rs.append(sentence)
+        return rs
+    
+    # get sentences without tags
+    def get_sentences_without_tag(self, tags):
+        rs = []
+        for sentence in self.sentences:
+            if tags not in sentence['tag']:
                 rs.append(sentence)
         return rs
