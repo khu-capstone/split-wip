@@ -1,5 +1,6 @@
 from nltk.tokenize import sent_tokenize
-
+import re
+ 
 class Broker():
     def __init__(self, html):
         self.html = html
@@ -14,7 +15,7 @@ class Broker():
         self.blocks = []
         self.text = ''
         # tags with no closing
-        self.non_closing_tags = ["area", "base", "br", "col", "command", "embeded", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"]
+        self.non_closing_tags = ["area", "base", "br", "col", "command", "embeded", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr", "!--"]
         # tags with article
         self.article_tags = ['div', 'p', 'li', 'ul', 'ol', 'h1', 'h2', 'h3']
         self.process()
@@ -26,7 +27,7 @@ class Broker():
                 self.index += 1
                 continue
             # if tag
-            if self.html[self.index] == '<':
+            if self.html[self.index] == '<' and self.html[self.index + 1] not in "0123456789": # <0.01
                 self.tag_process()
             # else not tag
             else:
@@ -45,6 +46,7 @@ class Broker():
 
     def text_process(self):
         self.update_text()
+        self.remove_wiki() # remove [145]
         self.update_data()
     
     # find tags(<p>, <span id="..">, <div ...>, </p> ...) from html
@@ -87,7 +89,8 @@ class Broker():
     
     # find text(not tags) from html
     def update_text(self):
-        self.text = ''
+        self.text = self.html[self.index]
+        self.index += 1
         while self.html[self.index] != '<':
             # remove newline
             if self.html[self.index] == '\n':
@@ -95,6 +98,12 @@ class Broker():
                 continue
             self.text += self.html[self.index]
             self.index += 1
+        
+    # remove wiki hyperlink
+    def remove_wiki(self):
+        regex = re.compile('\[\d+\]')
+        for reg in regex.findall(self.text):
+            self.text = self.text.replace(reg, '')
 
     # update sentence: save texts with all tags and attrs
     def update_data(self):
@@ -156,7 +165,7 @@ class SentenceBroker(Broker):
         for block in blocks:
             text = block['text']
             while text:
-                if text[0] in "\n ": # erase indent
+                if text[0] in ['\n', ' ']: # erase indent
                     text = text[1:]
                     continue
                 if self.sentence[index_i][index_j] in "\n ": # erase indent
@@ -221,3 +230,26 @@ class SentenceBroker(Broker):
             if tags not in sentence['tag']:
                 rs.append(sentence)
         return rs
+
+    # get previous sentence
+    def get_previous_sentence(self, u):
+        tag = u['tag']
+        index = u['line']
+        while True:
+            s = self.get_sentence(index)
+            if tag not in s['tag']:
+                if 'h1' in s['tag'] or 'h2' in s['tag'] or 'h3' in s['tag'] or 'h4' in s['tag'] or 'h5' in s['tag'] or 'h6' in s['tag']:
+                    break
+            index -= 1
+        return s
+
+    # get upper sentence
+    def get_upper_sentence(self, u):
+        tag = u['tag']
+        index = u['line']
+        while True:
+            s = self.get_sentence(index)
+            if tag not in s['tag']:
+               break
+            index -= 1
+        return s

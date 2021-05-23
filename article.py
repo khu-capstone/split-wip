@@ -1,4 +1,5 @@
 from newspaper import Article as Art
+from w3lib.html import replace_entities
 
 # get article from url with newspaper3k
 # html: article with html format
@@ -7,13 +8,17 @@ class Article():
     def __init__(self, url):
         self.url = url
         self.article = Art(self.url, keep_article_html=True)
-        self.download()
-        self.parse()
-        self.html = self.article.article_html
-        self.text = self.article.text
+        self.html = None
+        self.text = None
+        self.process()
     
-    def download(self):
-        self.article.download()
+    def process(self):
+        self.article.build()
+        self.replace()
     
-    def parse(self):
-        self.article.parse()
+    def replace(self):
+        self.html = replace_entities(self.article.article_html)
+        self.html = self.html.replace(u'\xa0', u' ')
+        
+        self.text = replace_entities(self.article.text)
+        self.text = self.text.replace(u'\xa0', u' ')
