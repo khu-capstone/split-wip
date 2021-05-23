@@ -1,16 +1,23 @@
 from article import Article
 from broker import SentenceBroker
 
-# get url
-url = "https://en.wikipedia.org/wiki/Wolfgang_Amadeus_Mozart"
-url = "https://en.wikipedia.org/wiki/COVID-19"
+# open file
+def open_file(path):
+    file = open(path, 'r')
+    return file
+
+# close file
+def close_file(file):
+    file.close()
 
 # get html from url
-article = Article(url)
-html = article.html
+def get_html_from_url(url):
+    article = Article(url)
+    return article.html
 
 # make structured html text from pure html
-sb = SentenceBroker(html)
+def get_sentence_broker(html):
+    return SentenceBroker(html)
 
 # sb.get_sentences()
 # get all sentences (line, tag, text)
@@ -26,16 +33,64 @@ sb = SentenceBroker(html)
 # sb.get_sentences_without_tag('p')
 # [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
 
-s = sb.get_sentences()
-ul = sb.get_sentences_with_tag('ul')
-ol = sb.get_sentences_with_tag('ol')
-ulol = ul + ol
+def process_tag(html, tag):
+    f = open("ul.csv", 'a')
+    prevs = []
+    for sentence in sb.get_sentences_with_tag(tag):
+        prev = sb.get_previous_sentence(sentence, tag)
+        uppr = sb.get_upper_sentence(sentence, tag)
+        # print('uppr:', uppr)
+        # print('prev:', prev)
+        # print('orig:', sentence['text'])
+        # print("========")
+        if not prev or not uppr:
+            continue
+        elif prev == uppr:
+            continue
+        elif prev in prevs:
+            continue
+        else:
+            print('uppr:', uppr)
+            print('prev:', prev)
+            print('orig:', sentence['text'])
+            print("========")
+            inp = input("no prev[0], prev[1]: ")
+            if int(inp) >= 1:
+                f.write(prev + ',' + inp + '\n')
+        prevs.append(prev)
+    f.close()
+        
 
-# get previous header sentence
-for u in ulol:
-    prev = sb.get_previous_sentence(u)
-    uppr = sb.get_upper_sentence(u)
-    print('orig: ', u['text'])
-    print('uppr: ', uppr['text'])
-    print('prev: ', prev['text'])
-    print("========")
+if __name__ == "__main__":
+    # wikipedia url datasets
+    # https://www.kaggle.com/residentmario/wikipedia-article-titles
+    baseurl = "https://en.wikipedia.org/wiki/"
+    filename = "titles.txt"
+    # open file
+    wikifile = open_file(filename)
+    # process file
+    line = wikifile.readline()
+    index = 0
+    wanted = 24
+    while line:
+        if wanted > 0:
+            index += 1
+            wanted -= 1
+            line = wikifile.readline()
+            continue
+        # get html from url
+        try:
+            url = baseurl + line.split()[0]
+            print(index, url)
+            html = get_html_from_url(url)
+            # get sentence broker from html
+            sb = get_sentence_broker(html)
+            # ul process
+            process_tag(html, 'ul')
+            line = wikifile.readline()
+            index += 1
+        except:
+            line = wikifile.readline()
+            index += 1
+    # close file
+    close_file(wikifile)

@@ -26,16 +26,14 @@ class Broker():
             if self.html[self.index] in "\n\t":
                 self.index += 1
                 continue
-            # if tag
-            if self.html[self.index] == '<' and self.html[self.index + 1] not in "0123456789": # <0.01
+            # lf other tags
+            elif self.html[self.index] == '<' and self.html[self.index + 1] not in "0123456789": # <0.01
                 self.tag_process()
             # else not tag
             else:
                 self.text_process()
-        # split at dots
-        self.split_dots()
-        # split as blocks
-        self.split_block()
+        self.split_dots() # split at dots
+        self.split_block() # split as blocks
     
     def tag_process(self):
         self.update_tags()
@@ -46,7 +44,6 @@ class Broker():
 
     def text_process(self):
         self.update_text()
-        self.remove_wiki() # remove [145]
         self.update_data()
     
     # find tags(<p>, <span id="..">, <div ...>, </p> ...) from html
@@ -98,12 +95,6 @@ class Broker():
                 continue
             self.text += self.html[self.index]
             self.index += 1
-        
-    # remove wiki hyperlink
-    def remove_wiki(self):
-        regex = re.compile('\[\d+\]')
-        for reg in regex.findall(self.text):
-            self.text = self.text.replace(reg, '')
 
     # update sentence: save texts with all tags and attrs
     def update_data(self):
@@ -113,7 +104,11 @@ class Broker():
         for self.tag, self.attr in self.stack:
             self.tags.append(self.tag)
             self.attrs.append(self.attr)
-        self.data.append({"tag":'>'.join(self.tags), "attr":self.attrs, "text":self.text, "block":self.block})
+        # compress header
+        if self.data and self.has_header(self.tags) and self.has_header(self.data[-1]['tag']):
+            self.data[-1]['text'] += self.text
+        else:
+            self.data.append({"tag":'>'.join(self.tags), "attr":self.attrs, "text":self.text, "block":self.block})
 
     # split data at dot
     def split_dots(self):
@@ -139,6 +134,12 @@ class Broker():
                 self.blocks.append(block[:])
                 index_block = data['block']
                 block = [data]
+    
+    @staticmethod
+    def has_header(tag):
+        if 'h1' in tag or 'h2' in tag or 'h3' in tag or 'h4' in tag or 'h5' in tag or 'h6' in tag:
+            return True
+        return False
 
 class SentenceBroker(Broker):
     def __init__(self, html):
@@ -152,6 +153,8 @@ class SentenceBroker(Broker):
         for i, blocks in enumerate(self.blocks):
             self.make_sentences(blocks)
             self.update_sentences(blocks)
+        self.remove_wiki() # remove wikipedia specific
+        self.remove_empty() # remove empty sentence
 
     # make sentences with block
     def make_sentences(self, blocks):
@@ -210,10 +213,6 @@ class SentenceBroker(Broker):
             if sentence['line'] == line:
                 return sentence
         return None
-
-    # get all sentences
-    def get_sentences(self):
-        return self.sentences
     
     # get sentences with tags
     def get_sentences_with_tag(self, tags):
@@ -231,25 +230,45 @@ class SentenceBroker(Broker):
                 rs.append(sentence)
         return rs
 
-    # get previous sentence
-    def get_previous_sentence(self, u):
-        tag = u['tag']
+    # get upper sentence
+    def get_upper_sentence(self, u, tag):
         index = u['line']
         while True:
+            if not index:
+                return None
             s = self.get_sentence(index)
-            if tag not in s['tag']:
+            if s and tag not in s['tag']:
                 if 'h1' in s['tag'] or 'h2' in s['tag'] or 'h3' in s['tag'] or 'h4' in s['tag'] or 'h5' in s['tag'] or 'h6' in s['tag']:
                     break
             index -= 1
-        return s
+        return s['text']
 
-    # get upper sentence
-    def get_upper_sentence(self, u):
-        tag = u['tag']
+    # get previous sentence
+    def get_previous_sentence(self, u, tag):
         index = u['line']
         while True:
+            if not index:
+                return None
             s = self.get_sentence(index)
-            if tag not in s['tag']:
+            if s and tag not in s['tag']:
                break
             index -= 1
-        return s
+        return s['text']
+    
+    # remove wiki specific
+    def remove_wiki(self):
+        self.remove_pattern('\[\d+\]')
+        self.remove_pattern('\[edit\]')
+        
+    def remove_pattern(self, pattern):
+        regex = re.compile(pattern)
+        for sentence in self.sentences:
+            for reg in regex.findall(sentence['text']):
+                sentence['text'] = sentence['text'].replace(reg, '')
+    
+    def remove_empty(self):
+        rs = []
+        for sentence in self.sentences:
+            if sentence['text']:
+                rs.append(sentence)
+        self.sentences = rs[:]
