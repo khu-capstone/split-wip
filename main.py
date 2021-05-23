@@ -34,7 +34,7 @@ def get_sentence_broker(html):
 # [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
 
 def process_tag(html, tag):
-    f = open("ul.csv", 'a')
+    f = open("ol_wiki.csv", 'a')
     prevs = []
     for sentence in sb.get_sentences_with_tag(tag):
         prev = sb.get_previous_sentence(sentence, tag)
@@ -50,13 +50,7 @@ def process_tag(html, tag):
         elif prev in prevs:
             continue
         else:
-            print('uppr:', uppr)
-            print('prev:', prev)
-            print('orig:', sentence['text'])
-            print("========")
-            inp = input("no prev[0], prev[1]: ")
-            if int(inp) >= 1:
-                f.write(prev + ',' + inp + '\n')
+            f.write(prev + '\n')
         prevs.append(prev)
     f.close()
         
@@ -71,7 +65,7 @@ if __name__ == "__main__":
     # process file
     line = wikifile.readline()
     index = 0
-    wanted = 24
+    wanted = 0
     while line:
         if wanted > 0:
             index += 1
@@ -86,7 +80,7 @@ if __name__ == "__main__":
             # get sentence broker from html
             sb = get_sentence_broker(html)
             # ul process
-            process_tag(html, 'ul')
+            process_tag(html, 'ol')
             line = wikifile.readline()
             index += 1
         except:
