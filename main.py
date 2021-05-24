@@ -1,90 +1,62 @@
 from article import Article
 from broker import SentenceBroker
+from utils import open_file, close_file
+import nltk
 
-# open file
-def open_file(path):
-    file = open(path, 'r')
-    return file
-
-# close file
-def close_file(file):
-    file.close()
-
-# get html from url
-def get_html_from_url(url):
-    article = Article(url)
-    return article.html
-
-# make structured html text from pure html
-def get_sentence_broker(html):
-    return SentenceBroker(html)
-
-# sb.get_sentences()
-# get all sentences (line, tag, text)
-# [{'line': 338, 'tag': 'p', 'text': 'Further reading'}, ...]
-
-# sb.get_sentences_with_tag(<tag>)
-# get sentences with tag (line, tag, text)
-# sb.get_sentences_with_tag('li')
-# [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
-
-# sb.get_sentences_without_tag(<tag>)
-# get sentences without tag (line, tag, text)
-# sb.get_sentences_without_tag('p')
-# [{'line': 147, 'tag': 'li', 'text': 'Raimund Leopold (17 June&#160;&#8211; 19 August 1783)'}, ...]
-
-def process_tag(html, tag):
-    f = open("ol_wiki.csv", 'a')
-    prevs = []
+def process(sb, tag):
+    rs = []
     for sentence in sb.get_sentences_with_tag(tag):
+        orig = sentence['text']
         prev = sb.get_previous_sentence(sentence, tag)
         uppr = sb.get_upper_sentence(sentence, tag)
-        # print('uppr:', uppr)
-        # print('prev:', prev)
-        # print('orig:', sentence['text'])
-        # print("========")
-        if not prev or not uppr:
+        print('uppr:', uppr)
+        print('prev:', prev)
+        print('orig:', sentence['text'])
+        print("========")
+        continue
+        if not prev or not uppr or prev == uppr:
             continue
-        elif prev == uppr:
-            continue
-        elif prev in prevs:
-            continue
+        r = ''
+        if prev[-1] == ":" or prev[-2:] == ' :':
+            r = prev + ' ' + orig
+        elif prev[-2:] == ': ':
+            r = prev + orig
         else:
-            f.write(prev + '\n')
-        prevs.append(prev)
-    f.close()
-        
+            r = orig
+        rs.append(r)
+    return rs
 
 if __name__ == "__main__":
-    # wikipedia url datasets
-    # https://www.kaggle.com/residentmario/wikipedia-article-titles
+    # baseurl = ''
+    # baseurl for wiki
     baseurl = "https://en.wikipedia.org/wiki/"
+    
     filename = "titles.txt"
-    # open file
-    wikifile = open_file(filename)
-    # process file
-    line = wikifile.readline()
-    index = 0
-    wanted = 0
+    tag = 'ul'
+    
+    rfile = open_file(filename)
+    line = rfile.readline()
+    for _ in range(126):
+        line = rfile.readline()
     while line:
-        if wanted > 0:
-            index += 1
-            wanted -= 1
-            line = wikifile.readline()
-            continue
-        # get html from url
         try:
-            url = baseurl + line.split()[0]
-            print(index, url)
-            html = get_html_from_url(url)
-            # get sentence broker from html
-            sb = get_sentence_broker(html)
-            # ul process
-            process_tag(html, 'ol')
-            line = wikifile.readline()
-            index += 1
+            url = baseurl + line.split('\n')[0]
+            print(url)
+            article = Article(url)
+            html = article.html
+            sb = SentenceBroker(html)
+            rs = process(sb, tag)
+            # print(rs)
+        except KeyboardInterrupt:
+            break
         except:
-            line = wikifile.readline()
-            index += 1
-    # close file
-    close_file(wikifile)
+            pass
+        line = rfile.readline().split()[0]
+    close_file(rfile)
+
+from openie import StanfordOpenIE
+with StanfordOpenIE() as client:
+    for text in rs:
+        print('Text: %s.' % text)
+        for triple in client.annotate(text):
+            print('|-', triple)
